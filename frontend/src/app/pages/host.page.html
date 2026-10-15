@@ -1,0 +1,150 @@
+<div class="host-container">
+  @if (status() === 'LOBBY') {
+    <header class="host-top-nav">
+      <button class="btn-nav-back font-mono" (click)="goHome()">
+        ← [ VOLVER AL INICIO ]
+      </button>
+      <div class="host-room-badge font-mono">
+        <span class="pulse-dot">●</span> SALA: {{ roomCode() || '...' }}
+      </div>
+    </header>
+
+    <div class="lobby-grid">
+      <div class="panel info-panel">
+        <h1 class="host-title font-mono">HACKEADOS</h1>
+        <p class="subtitle font-mono">> CONTROL DEL ANFITRIÓN _</p>
+
+        <div class="pin-box">
+          <span class="label font-mono">PIN DE ACCESO</span>
+          <div class="pin-code font-mono">{{ roomCode() || '...' }}</div>
+        </div>
+
+        <app-room-settings
+          [categoryId]="categoryId()"
+          [durationSeconds]="durationSeconds()"
+          [theme]="theme()"
+          (configChange)="onConfigChange($event)"
+        ></app-room-settings>
+
+        <div class="mode-section">
+          <label class="font-mono section-label">ELIGE TU ROL EN ESTA SALA:</label>
+          <div class="mode-selector-grid">
+            <button
+              class="mode-card font-mono"
+              [class.active]="mode() === 'OBSERVER'"
+              (click)="setMode('OBSERVER')"
+            >
+              <span class="mode-icon">📺</span>
+              <span class="mode-title">SOLO PROYECTAR</span>
+              <span class="mode-desc">Pantalla TV / Proyector</span>
+            </button>
+            <button
+              class="mode-card font-mono"
+              [class.active]="mode() === 'PLAYER'"
+              (click)="setMode('PLAYER')"
+            >
+              <span class="mode-icon">🎮</span>
+              <span class="mode-title">JUGAR EN ESTA SALA</span>
+              <span class="mode-desc">Participar como jugador</span>
+            </button>
+          </div>
+        </div>
+
+        @if (mode() === 'PLAYER') {
+          <div class="host-player-setup">
+            @if (!isJoined()) {
+              <div class="avatar-selector">
+                <button class="nav-btn font-mono" (click)="prevAvatar()">[ < ]</button>
+                <div class="avatar-box" [innerHTML]="currentAvatarSvg()"></div>
+                <button class="nav-btn font-mono" (click)="nextAvatar()">[ > ]</button>
+              </div>
+              <div class="nick-field">
+                <label class="font-mono">TU APODO (MAX 20):</label>
+                <input [(ngModel)]="hostNickname" maxlength="20" class="cyber-input font-mono" placeholder="ANFITRION" />
+              </div>
+              <button class="btn-cyber btn-confirm-join font-mono" (click)="confirmJoin()">
+                [ UNIRME AL LOBBY COMO JUGADOR ]
+              </button>
+            } @else {
+              <div class="joined-card">
+                <div class="joined-avatar" [innerHTML]="currentAvatarSvg()"></div>
+                <div class="joined-info">
+                  <span class="joined-status font-mono">✅ UNIDO AL LOBBY:</span>
+                  <span class="joined-nick font-mono">{{ hostNickname.toUpperCase() }}</span>
+                </div>
+                <button class="btn-edit font-mono" (click)="isJoined.set(false)">[ Cambiar ]</button>
+              </div>
+            }
+          </div>
+        }
+
+        <div class="controls">
+          <button
+            class="btn-cyber btn-start font-mono"
+            [class.ready]="canStart()"
+            [disabled]="!canStart()"
+            (click)="onStartGame()"
+          >
+            {{ canStart() ? '¡INICIAR PARTIDA! (' + players().length + ' LISTOS)' : 'INICIAR PARTIDA (' + players().length + '/2 JUGADORES)' }}
+          </button>
+          <button class="btn-cancel-room font-mono" (click)="goHome()">[ ✕ Abandonar / Cerrar Sala ]</button>
+        </div>
+      </div>
+
+      <div class="panel qr-panel">
+        <p class="qr-hint font-mono">ESCANEA CON TU MÓVIL PARA ENTRAR</p>
+        @if (roomCode()) {
+          <img [src]="getQrUrl()" class="qr-img" alt="QR de Sala" />
+        }
+        <p class="direct-url font-mono">hackeados.geislera.com/join?pin={{ roomCode() }}</p>
+      </div>
+
+      <div class="panel players-panel">
+        <h3 class="font-mono">NODOS CONECTADOS ({{ players().length }}/40)</h3>
+        <div class="players-list">
+          @for (p of players(); track p.socketId) {
+            <div class="player-tag">
+              <div class="mini-avatar" [innerHTML]="getAvatar(p.avatarId)"></div>
+              <span class="nick font-mono">{{ p.nickname }}</span>
+            </div>
+          }
+        </div>
+      </div>
+    </div>
+  } @else if (status() === 'PASSWORD_SETUP') {
+    <div class="setup-screen">
+      <div class="setup-box">
+        <div class="setup-shield">🛡️</div>
+        <h2 class="font-mono setup-title">> PROTOCOLOS DE DEFENSA INICIALES _</h2>
+        <p class="setup-subtitle font-mono">Los jugadores están seleccionando sus claves secretas en sus dispositivos...</p>
+        <div class="countdown-badge font-mono">
+          <span class="countdown-num">{{ setupCountdown() }}</span>
+          <span class="countdown-sec">SEGUNDOS RESTANTES</span>
+        </div>
+        <div class="setup-bar"><div class="setup-bar-fill" [style.width.%]="(setupCountdown() / 10) * 100"></div></div>
+      </div>
+    </div>
+  } @else if (status() === 'PLAYING') {
+    <div class="live-screen">
+      <header class="live-header">
+        <div class="time-clock font-mono">TIEMPO: {{ timeRemaining() }}s</div>
+        <div class="room-tag font-mono">SALA: {{ roomCode() }}</div>
+      </header>
+      <app-game-ticker [messages]="tickerMessages()"></app-game-ticker>
+      <div class="leaderboard-grid">
+        @for (item of leaderboard(); track item.nickname) {
+          <div class="rank-row">
+            <span class="rank-pos font-mono">#{{ item.rank }}</span>
+            <div class="rank-avatar" [innerHTML]="getAvatar(item.avatarId)"></div>
+            <span class="rank-nick font-mono">{{ item.nickname }}</span>
+            <span class="rank-score font-mono">{{ item.score.toLocaleString() }} PTS</span>
+          </div>
+        }
+      </div>
+    </div>
+  } @else {
+    <div class="ended-screen">
+      <app-match-summary [leaderboard]="leaderboard()" (home)="goHome()"></app-match-summary>
+    </div>
+  }
+</div>

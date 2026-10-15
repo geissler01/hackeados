@@ -1,0 +1,24 @@
+.summary-container { width: 100%; max-width: 600px; margin: 0 auto; padding: 16px; text-align: center; }
+.title { color: var(--accent-primary); font-size: 20px; margin-bottom: 20px; }
+.podium-row { display: flex; justify-content: center; gap: 12px; margin-bottom: 24px; align-items: flex-end; }
+.podium-card { flex: 1; max-width: 170px; background: var(--bg-surface); border: 2px solid var(--border-subtle); border-radius: 10px; padding: 16px 8px; position: relative; }
+.podium-card.rank-1 { border-color: var(--accent-primary); order: 2; padding: 22px 8px; }
+.podium-card.rank-2 { border-color: #00e5ff; order: 1; }
+.podium-card.rank-3 { border-color: #ffb700; order: 3; }
+.podium-card.is-me, .player-row.is-me { box-shadow: 0 0 16px rgba(0, 255, 136, 0.4); border-color: var(--accent-primary) !important; }
+.rank-badge { font-size: 16px; font-weight: bold; margin-bottom: 6px; }
+.avatar-box { width: 56px; height: 56px; margin: 0 auto 8px; }
+.nick { font-size: 13px; font-weight: bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.score { font-size: 14px; color: var(--accent-primary); margin-top: 4px; }
+.me-tag, .me-pill { background: var(--accent-primary); color: #000; font-size: 11px; font-weight: 800; border-radius: 4px; padding: 2px 6px; margin-top: 6px; display: inline-block; }
+.rest-list { background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 12px; margin-bottom: 20px; max-height: 240px; overflow-y: auto; }
+.rest-header { font-size: 12px; color: var(--text-muted); text-align: left; margin-bottom: 8px; }
+.player-row { display: flex; align-items: center; gap: 10px; padding: 8px; border-bottom: 1px solid rgba(255,255,255,0.05); }
+.player-row.is-me { background: rgba(0, 255, 136, 0.08); border-radius: 6px; }
+.row-rank { font-size: 14px; color: var(--text-muted); width: 32px; }
+.row-avatar { width: 30px; height: 30px; }
+.row-nick { flex: 1; text-align: left; font-size: 14px; }
+.row-score { font-size: 14px; color: var(--accent-primary); }
+.auto-timer { font-size: 12px; color: var(--text-muted); margin-bottom: 14px; }
+.auto-timer span { color: var(--accent-primary); font-weight: bold; }
+.btn-home { width: 100%; max-width: 320px; background: var(--accent-primary); color: var(--bg-app); }

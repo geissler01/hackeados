@@ -1,0 +1,130 @@
+<div class="player-container">
+  @if (currentView() !== 'LOBBY' && currentView() !== 'ENDED') {
+    <header class="hud">
+      <div class="hud-item font-mono score-tag">
+        {{ score().toLocaleString() }} PTS
+        @if (floatingPoints() !== null) {
+          <span class="floating-badge font-mono" [class.positive]="floatingPoints()! > 0" [class.negative]="floatingPoints()! < 0">
+            {{ floatingPoints()! > 0 ? '+' : '' }}{{ floatingPoints() }} PTS
+          </span>
+        }
+      </div>
+      <div class="hud-item font-mono timer-tag">{{ timeRemaining() }}s</div>
+    </header>
+    <app-game-ticker [messages]="tickerMessages()"></app-game-ticker>
+  }
+
+  @switch (currentView()) {
+    @case ('LOBBY') {
+      <div class="lobby-box">
+        <div class="lobby-top-bar">
+          <span class="lobby-room-code font-mono">SALA: {{ roomCode }}</span>
+        </div>
+
+        <h2 class="font-mono lobby-title">> SALA DE ESPERA _</h2>
+        <div class="user-hero">
+          <div class="hero-avatar" [innerHTML]="getAvatar(avatarId())"></div>
+          <span class="hero-nick font-mono">{{ nickname }}</span>
+          <span class="room-badge font-mono">TU NODO ACTIVO</span>
+        </div>
+
+        @if (isHost()) {
+          <div class="host-play-action">
+            <button
+              class="btn-cyber btn-host-start font-mono"
+              [class.ready]="canStart()"
+              [disabled]="!canStart()"
+              (click)="onStartGame()"
+            >
+              {{ canStart() ? '¡INICIAR PARTIDA! (' + connectedPlayers().length + ' LISTOS)' : 'INICIAR PARTIDA (' + connectedPlayers().length + '/2 JUGADORES)' }}
+            </button>
+            <p class="host-badge font-mono">👑 ERES EL ANFITRIÓN DE ESTA SALA</p>
+          </div>
+        } @else {
+          <div class="waiting-indicator font-mono">
+            <span class="dot-pulse">●</span> ESPERANDO AL ANFITRIÓN ({{ connectedPlayers().length }}/40)
+          </div>
+        }
+
+        <div class="other-players">
+          <h4 class="font-mono">JUGADORES EN EL LOBBY ({{ connectedPlayers().length }}):</h4>
+          <div class="mini-players-grid">
+            @for (p of connectedPlayers(); track p.socketId) {
+              <div class="player-pill" [class.me]="p.nickname === nickname">
+                <div class="pill-avatar" [innerHTML]="getAvatar(p.avatarId)"></div>
+                <span class="pill-name font-mono">{{ p.nickname }}</span>
+              </div>
+            }
+          </div>
+        </div>
+
+        <button class="btn-leave-room font-mono" (click)="goHome()">[ ✕ SALIR DE LA PARTIDA ]</button>
+      </div>
+    }
+    @case ('PASSWORDS') {
+      <div class="center-box">
+        <h3 class="font-mono">> ASIGNA TU CLAVE DEFENSIVA _</h3>
+        <div class="pwd-timer-badge font-mono">INICIANDO EN: <span class="highlight">{{ passwordCountdown() }}s</span></div>
+        <p class="muted font-mono">Elige tu contraseña antes del límite (o se asignará una al azar):</p>
+        <div class="options-list">
+          @for (pwd of passwordOptions(); track pwd) {
+            <button
+              class="btn-cyber pwd-btn font-mono"
+              [class.selected]="selectedPassword() === pwd"
+              (click)="selectPassword(pwd)"
+            >
+              {{ selectedPassword() === pwd ? '[✓] ' : '[•] ' }}{{ pwd }}
+            </button>
+          }
+        </div>
+      </div>
+    }
+    @case ('QUIZ') {
+      @if (currentQuestion()) {
+        <div class="quiz-box">
+          <div class="question-text">{{ currentQuestion().questionText }}</div>
+          <div class="answers-grid">
+            @for (opt of currentQuestion().options; track $index) {
+              <button class="answer-btn font-mono" (click)="submitAnswer($index)">
+                <span class="opt-key">[{{ ['A', 'B', 'C', 'D'][$index] }}]</span> {{ opt }}
+              </button>
+            }
+          </div>
+        </div>
+      }
+    }
+    @case ('CARDS') {
+      <app-cards-picker #picker (pick)="onPickCard($event, picker)"></app-cards-picker>
+    }
+    @case ('HACKING') {
+      @if (hackOptions()) {
+        <div class="hack-box">
+          <div class="hack-alert font-mono">¡BRECHA ACTIVA VS {{ hackOptions().targetNickname }}!</div>
+          <div class="hack-timer-badge font-mono">TIEMPO LÍMITE: <span class="highlight">{{ hackCountdown() }}s</span></div>
+          <p class="muted font-mono">Adivina su contraseña (1 de 3 opciones):</p>
+          <div class="options-list">
+            @for (opt of hackOptions().options; track opt) {
+              <button class="btn-cyber hack-btn font-mono" (click)="submitHackGuess(opt)">{{ opt }}</button>
+            }
+          </div>
+        </div>
+      }
+    }
+    @case ('DEFENDING') {
+      <div class="defense-box">
+        <div class="breach-banner font-mono">¡ALERTA: INTRUSIÓN EN CURSO!</div>
+        <p class="def-sub font-mono">¡Resuelve el bloqueo antes de que descifren tu clave!</p>
+        @if (victimMinigame() === 'matrix') {
+          <app-defense-matrix (completed)="onDefenseSuccess()"></app-defense-matrix>
+        } @else if (victimMinigame() === 'simon') {
+          <app-defense-simon (completed)="onDefenseSuccess()"></app-defense-simon>
+        } @else {
+          <app-defense-slider (completed)="onDefenseSuccess()"></app-defense-slider>
+        }
+      </div>
+    }
+    @case ('ENDED') {
+      <app-match-summary [leaderboard]="leaderboard()" [myNickname]="nickname" (home)="goHome()"></app-match-summary>
+    }
+  }
+</div>

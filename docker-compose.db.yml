@@ -1,0 +1,29 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: hackeados_postgres
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: ${DB_USER:-hackeados_admin}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-hackeados_secret_2026}
+      POSTGRES_DB: ${DB_NAME:-hackeados_db}
+    volumes:
+      - hackeados_pgdata:/var/lib/postgresql/data
+      - ./init-db:/docker-entrypoint-initdb.d:ro
+    networks:
+      - hackeados_net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-hackeados_admin} -d ${DB_NAME:-hackeados_db}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  hackeados_pgdata:
+    name: hackeados_pgdata
+
+networks:
+  hackeados_net:
+    name: hackeados_net

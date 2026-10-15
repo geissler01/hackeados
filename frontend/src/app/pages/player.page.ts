@@ -1,0 +1,120 @@
+import { Component, OnInit, inject, signal } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { ActivatedRoute, Router } from '@angular/router';
+import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
+import { SocketService } from '../services/socket.service';
+import { AvatarService } from '../services/avatar.service';
+import { AudioService } from '../services/audio.service';
+import { HapticsService } from '../services/haptics.service';
+import { PlayerDuelService } from '../services/player-duel.service';
+import { PlayerQuizService } from '../services/player-quiz.service';
+import { CardsPickerComponent } from '../components/cards-picker.component';
+import { DefenseMatrixComponent } from '../components/defense/matrix-defense.component';
+import { DefenseSimonComponent } from '../components/defense/simon-defense.component';
+import { DefenseSliderComponent } from '../components/defense/slider-defense.component';
+import { GameTickerComponent, TickerMessage } from '../components/game-ticker.component';
+import { MatchSummaryComponent } from '../components/match-summary.component';
+
+@Component({
+  selector: 'app-player', standalone: true,
+  imports: [CommonModule, CardsPickerComponent, DefenseMatrixComponent, DefenseSimonComponent, DefenseSliderComponent, GameTickerComponent, MatchSummaryComponent],
+  templateUrl: './player.page.html', styleUrls: ['./player.page.css'],
+})
+export class PlayerPage implements OnInit {
+  private route = inject(ActivatedRoute); private router = inject(Router); private socket = inject(SocketService);
+  private avatar = inject(AvatarService); private audio = inject(AudioService); private haptics = inject(HapticsService);
+  private sanitizer = inject(DomSanitizer); private duel = inject(PlayerDuelService); private quiz = inject(PlayerQuizService);
+
+  roomCode = ''; nickname = '';
+  readonly isHost = signal(false); readonly avatarId = signal(1); readonly timeRemaining = signal(300);
+  readonly currentView = signal<'LOBBY' | 'PASSWORDS' | 'QUIZ' | 'CARDS' | 'HACKING' | 'DEFENDING' | 'ENDED'>('LOBBY');
+  readonly connectedPlayers = signal<any[]>([]); readonly leaderboard = signal<any[]>([]);
+  readonly tickerMessages = signal<TickerMessage[]>([]); readonly passwordOptions = signal<string[]>([]);
+  readonly selectedPassword = signal(''); readonly passwordCountdown = signal(10);
+  readonly floatingPoints = signal<number | null>(null);
+  readonly score = this.quiz.score; readonly currentQuestion = this.quiz.currentQuestion;
+  readonly hackCountdown = this.duel.hackCountdown; readonly hackOptions = this.duel.hackOptions;
+  readonly victimMinigame = this.duel.victimMinigame;
+  private pwdTimer?: any;
+
+  ngOnInit(): void {
+    this.roomCode = this.route.snapshot.paramMap.get('roomCode') || sessionStorage.getItem('hackeados_play_room') || '';
+    this.nickname = this.route.snapshot.queryParamMap.get('nick') || sessionStorage.getItem('hackeados_play_nick') || '';
+    this.avatarId.set(parseInt(this.route.snapshot.queryParamMap.get('avatar') || sessionStorage.getItem('hackeados_play_av') || '1', 10));
+    sessionStorage.setItem('hackeados_play_room', this.roomCode); sessionStorage.setItem('hackeados_play_nick', this.nickname);
+    this.bindSocketEvents();
+    this.socket.emitWithAck('room:reconnect', { roomCode: this.roomCode, role: 'player', nickname: this.nickname }).then((res: any) => {
+      if (!res?.success || res?.status === 'ENDED') { this.goHome(); return; }
+      if (res.players) this.connectedPlayers.set(res.players);
+      if (res.isHost) this.isHost.set(true);
+      if (res.theme) document.documentElement.setAttribute('data-theme', res.theme);
+      if (res.status === 'PASSWORD_SETUP') this.startPasswordSetup({ options: res.options, durationSeconds: 10 });
+      else if (res.status === 'PLAYING') this.quiz.requestNextQuestion().then(() => this.currentView.set('QUIZ'));
+    });
+  }
+
+  private bindSocketEvents(): void {
+    this.socket.on('room:closed', () => this.goHome());
+    this.socket.on<any>('room:players_updated', (d) => { this.connectedPlayers.set(d.players || []); if (d.hostSocketId && this.socket.socketId === d.hostSocketId) this.isHost.set(true); if (d.theme) document.documentElement.setAttribute('data-theme', d.theme); });
+    this.socket.on<any>('room:config_updated', (d) => { if (d?.theme) document.documentElement.setAttribute('data-theme', d.theme); });
+    this.socket.on<any>('game:setup_passwords', (d) => this.startPasswordSetup(d));
+    this.socket.on<any>('game:started', (d) => { if (d?.theme) document.documentElement.setAttribute('data-theme', d.theme); clearInterval(this.pwdTimer); this.quiz.requestNextQuestion().then(() => this.currentView.set('QUIZ')); });
+    this.socket.on<any>('game:tick', (d) => { this.timeRemaining.set(d.time); if (d.leaderboard) this.leaderboard.set(d.leaderboard); });
+    this.socket.on<any>('game:event_broadcast', (msg) => this.tickerMessages.update((m) => [...m.slice(-9), msg]));
+    this.socket.on<any>('hack:alert_victim', (d) => { this.duel.triggerDefense(d.minigameType); this.currentView.set('DEFENDING'); });
+    this.socket.on<any>('hack:defense_cleared', () => { this.audio.playCorrect(); this.currentView.set('QUIZ'); this.quiz.requestNextQuestion(); });
+    this.socket.on<any>('hack:aborted', () => { this.duel.cancelHacking(); this.audio.playWrong(); this.currentView.set('QUIZ'); this.quiz.requestNextQuestion(); });
+    this.socket.on<any>('hack:breach_confirmed', (d) => { this.haptics.error(); this.audio.playWrong(); if (d?.stolenPoints) { this.score.update((s) => Math.max(0, s - d.stolenPoints)); this.triggerFloating(-d.stolenPoints); } this.currentView.set('QUIZ'); this.quiz.requestNextQuestion(); });
+    this.socket.on<any>('game:ended', (d) => { this.currentView.set('ENDED'); if (d?.finalLeaderboard) this.leaderboard.set(d.finalLeaderboard); });
+  }
+
+  canStart(): boolean { return this.connectedPlayers().length >= 2; }
+  onStartGame(): void { if (this.canStart()) this.socket.emit('game:start', { roomCode: this.roomCode }); }
+  getAvatar(id: number): SafeHtml { return this.sanitizer.bypassSecurityTrustHtml(this.avatar.getAvatarSvg(id)); }
+  selectPassword(pwd: string): void { this.selectedPassword.set(pwd); this.socket.emit('player:set_password', { password: pwd }); }
+
+  startPasswordSetup(d: any): void {
+    if (this.currentView() === 'PASSWORDS') return;
+    clearInterval(this.pwdTimer);
+    this.passwordOptions.set(d.options || []); this.passwordCountdown.set(d.durationSeconds || 10); this.currentView.set('PASSWORDS');
+    this.pwdTimer = setInterval(() => this.passwordCountdown.update((c) => (c > 0 ? c - 1 : 0)), 1000);
+  }
+
+  async submitAnswer(idx: number): Promise<void> {
+    if (await this.quiz.submitAnswer(this.currentQuestion().id, idx)) this.currentView.set('CARDS');
+    else setTimeout(() => this.quiz.requestNextQuestion(), 1800);
+  }
+
+  async onPickCard(slot: number, picker: CardsPickerComponent): Promise<void> {
+    const prevScore = this.score();
+    const res = await this.quiz.pickCard(slot);
+    if (!res) return;
+    const diff = (res.newScore ?? prevScore) - prevScore;
+    if (diff !== 0) this.triggerFloating(diff);
+    picker.reveal(res.allCards || [res.reward]);
+    setTimeout(() => {
+      if (res.reward.type === 'HACK' && res.hackData) {
+        this.currentView.set('HACKING');
+        this.duel.startHacking(res.hackData, () => { this.currentView.set('QUIZ'); this.quiz.requestNextQuestion(); });
+      } else { this.currentView.set('QUIZ'); this.quiz.requestNextQuestion(); }
+    }, 2000);
+  }
+
+  async submitHackGuess(guess: string): Promise<void> {
+    const res = await this.duel.submitGuess(guess);
+    const stolen = res?.stolenPoints || 0;
+    if (res?.success && stolen > 0) {
+      this.score.update((s) => s + stolen);
+      this.triggerFloating(stolen);
+      this.audio.playCorrect();
+    } else {
+      this.audio.playWrong();
+    }
+    this.currentView.set('QUIZ');
+    this.quiz.requestNextQuestion();
+  }
+
+  onDefenseSuccess(): void { this.duel.completeDefense(); this.currentView.set('QUIZ'); this.quiz.requestNextQuestion(); }
+  private triggerFloating(pts: number): void { this.floatingPoints.set(pts); setTimeout(() => this.floatingPoints.set(null), 1400); }
+  async goHome(): Promise<void> { try { await this.socket.emitWithAck('room:leave'); } catch {} sessionStorage.clear(); this.router.navigate(['/']); }
+}

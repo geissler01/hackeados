@@ -1,0 +1,99 @@
+<div class="settings-box">
+  <div class="setting-group">
+    <label class="setting-title font-mono">> ÁREA DE CONOCIMIENTO:</label>
+    <div class="selected-cat-card" (click)="openModal()">
+      <div class="cat-card-info">
+        <span class="cat-card-icon">{{ currentCategory.icon }}</span>
+        <div class="cat-card-texts">
+          <span class="cat-card-label font-mono">{{ currentCategory.label }}</span>
+          <span class="cat-card-desc">{{ currentCategory.desc }}</span>
+        </div>
+      </div>
+      <button type="button" class="btn-change-cat font-mono">[ CAMBIAR ]</button>
+    </div>
+  </div>
+
+  <div class="row-settings">
+    <div class="setting-group half">
+      <label class="setting-title font-mono">> TIEMPO DE PARTIDA:</label>
+      <div class="options-pills">
+        @for (dur of durations; track dur.seconds) {
+          <button
+            type="button"
+            class="pill-btn font-mono"
+            [class.active]="durationSeconds === dur.seconds"
+            (click)="setDuration(dur.seconds)"
+          >
+            {{ dur.label }}
+          </button>
+        }
+      </div>
+    </div>
+
+    <div class="setting-group half">
+      <label class="setting-title font-mono">> TEMA VISUAL (MUNDO):</label>
+      <div class="options-pills">
+        @for (thm of themes; track thm.id) {
+          <button
+            type="button"
+            class="pill-btn font-mono"
+            [class.active]="theme === thm.id"
+            (click)="setTheme(thm.id)"
+          >
+            {{ thm.icon }} {{ thm.label }}
+          </button>
+        }
+      </div>
+    </div>
+  </div>
+
+  @if (isModalOpen()) {
+    <div class="modal-backdrop" (click)="closeModal()">
+      <div class="modal-dialog" (click)="$event.stopPropagation()">
+        <header class="modal-header">
+          <h3 class="modal-title font-mono">> SELECCIONAR ÁREA DE CONOCIMIENTO _</h3>
+          <button type="button" class="modal-close-btn font-mono" (click)="closeModal()">✕</button>
+        </header>
+
+        <div class="search-box">
+          <input
+            type="text"
+            class="search-input font-mono"
+            placeholder="[ Buscar tema o palabra clave... ]"
+            [ngModel]="searchQuery()"
+            (ngModelChange)="searchQuery.set($event)"
+          />
+        </div>
+
+        <div class="categories-scroll-list">
+          @for (cat of filteredCategories; track cat.id) {
+            <div
+              class="cat-item"
+              [class.selected]="tempCategoryId() === cat.id"
+              (click)="selectTemp(cat.id)"
+            >
+              <span class="cat-icon">{{ cat.icon }}</span>
+              <div class="cat-details">
+                <span class="cat-name font-mono">{{ cat.label }}</span>
+                <span class="cat-description">{{ cat.desc }}</span>
+              </div>
+              <span class="cat-check font-mono">{{ tempCategoryId() === cat.id ? '[✓]' : '[ ]' }}</span>
+            </div>
+          }
+          @if (filteredCategories.length === 0) {
+            <p class="no-results font-mono">No se encontraron categorías coincidentes.</p>
+          }
+        </div>
+
+        <footer class="modal-footer">
+          <button type="button" class="btn-modal-cancel font-mono" (click)="closeModal()">
+            [ CANCELAR ]
+          </button>
+          <button type="button" class="btn-modal-confirm font-mono" (click)="confirmCategory()">
+            [ ACEPTAR Y APLICAR ]
+          </button>
+        </footer>
+      </div>
+    </div>
+  }
+</div>

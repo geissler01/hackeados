@@ -1,0 +1,73 @@
+# ===================================================
+# DEPENDENCIAS
+# ===================================================
+node_modules/
+.npm/
+.pnpm-store/
+
+# ===================================================
+# COMPILADOS Y BUILD ARTIFACTS
+# ===================================================
+dist/
+build/
+out/
+.angular/
+.tsbuildinfo
+*.tsbuildinfo
+
+# ===================================================
+# ARCHIVOS DE ENTORNO Y SECRETOS (CRÍTICO DE SEGURIDAD)
+# ===================================================
+.env
+.env*
+*.env
+*.env.*
+!*.env.example
+!**/.env.example
+
+# Llaves privadas, certificados y credenciales SSH/TLS/VPS
+*.pem
+*.key
+*.crt
+*.cer
+*.p12
+*.pfx
+id_rsa*
+id_ed25519*
+
+# ===================================================
+# DOCKER Y VOLÚMENES LOCALES DE BASE DE DATOS
+# ===================================================
+postgres_data/
+hackeados_pgdata/
+*.dump
+*.sql.gz
+
+# ===================================================
+# LOGS Y REPORTES DE ERRORES
+# ===================================================
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ===================================================
+# TESTING Y COBERTURA
+# ===================================================
+coverage/
+.nyc_output/
+.vitest/
+
+# ===================================================
+# IDE, EDITORES Y SISTEMA OPERATIVO
+# ===================================================
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+.idea/
+.DS_Store
+Thumbs.db
+Desktop.ini
+*.swp
+*~

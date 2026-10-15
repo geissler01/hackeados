@@ -1,0 +1,82 @@
+:root, [data-theme="matrix-emerald"] {
+  --bg-app: #0a0d0f;
+  --bg-surface: #12181c;
+  --bg-surface-hover: #192228;
+  --border-subtle: #1f2c33;
+  --border-glow: rgba(0, 255, 136, 0.4);
+  --accent-primary: #00ff88;
+  --accent-secondary: #00e5ff;
+  --accent-warning: #ffb700;
+  --accent-danger: #ff003c;
+  --text-primary: #e6edf3;
+  --text-muted: #758a99;
+  --text-accent: #00ff88;
+}
+
+[data-theme="cyber-arcade"] {
+  --bg-app: #0b0e14;
+  --bg-surface: #151922;
+  --bg-surface-hover: #1f2430;
+  --border-subtle: #293040;
+  --border-glow: rgba(0, 229, 255, 0.4);
+  --accent-primary: #00e5ff;
+  --accent-secondary: #ff007f;
+  --accent-warning: #ffb700;
+  --accent-danger: #ff003c;
+  --text-primary: #f0f4fc;
+  --text-muted: #8b9bb4;
+  --text-accent: #00e5ff;
+}
+
+[data-theme="amber-crt"] {
+  --bg-app: #0d0a06;
+  --bg-surface: #19140c;
+  --bg-surface-hover: #261e12;
+  --border-subtle: #382c1a;
+  --border-glow: rgba(255, 158, 0, 0.4);
+  --accent-primary: #ff9e00;
+  --accent-secondary: #ffc400;
+  --accent-warning: #ff6a00;
+  --accent-danger: #ff2200;
+  --text-primary: #ffeed6;
+  --text-muted: #997f5c;
+  --text-accent: #ff9e00;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background-color: var(--bg-app);
+  color: var(--text-primary);
+  font-family: 'Inter', -apple-system, sans-serif;
+  overflow-x: hidden;
+  min-height: 100vh;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+
+.font-mono { font-family: 'JetBrains Mono', monospace; }
+
+.btn-cyber {
+  background: var(--bg-surface);
+  color: var(--accent-primary);
+  border: 1px solid var(--accent-primary);
+  padding: 14px 24px;
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 700;
+  text-transform: uppercase;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.btn-cyber:active {
+  background: var(--accent-primary);
+  color: var(--bg-app);
+  transform: scale(0.98);
+}

@@ -1,0 +1,28 @@
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: hackeados_backend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=${DB_USER:-hackeados_admin}
+      - DB_PASSWORD=${DB_PASSWORD:-hackeados_secret_2026}
+      - DB_NAME=${DB_NAME:-hackeados_db}
+      - PORT=3000
+      - NODE_ENV=production
+      - CORS_ORIGIN=http://localhost:4200,https://hackeados.geislera.com
+      - GROQ_API_KEY=${GROQ_API_KEY}
+      - GROQ_MODEL=${GROQ_MODEL:-llama-3.3-70b-versatile}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - GEMINI_MODEL=${GEMINI_MODEL:-gemini-1.5-flash}
+    networks:
+      - hackeados_net
+
+networks:
+  hackeados_net:
+    external: true
