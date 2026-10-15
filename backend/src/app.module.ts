@@ -10,7 +10,7 @@ import { LeaderboardModule } from './modules/leaderboard/leaderboard.module';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true, envFilePath: '.env' }),
+    ConfigModule.forRoot({ isGlobal: true, envFilePath: ['.env', '../.env'] }),
     TypeOrmModule.forRoot(getDatabaseConfig()),
     RoomsModule,
     QuestionsModule,

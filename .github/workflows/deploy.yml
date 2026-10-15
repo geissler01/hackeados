@@ -1,14 +1,16 @@
-name: CI/CD Deploy - Hackeados
+name: CI/CD Deploy - Hackeados Backend
 
 on:
   push:
     branches: [main]
+  workflow_dispatch:
 
 jobs:
-  build-and-test:
+  test:
+    name: Pruebas Unitarias Backend
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Repositorio
+      - name: Checkout del Repositorio
         uses: actions/checkout@v4
 
       - name: Configurar Node.js 22
@@ -18,31 +20,57 @@ jobs:
           cache: 'npm'
           cache-dependency-path: backend/package.json
 
-      - name: Compilar Backend (NestJS)
+      - name: Instalar dependencias del Backend
         run: |
           cd backend
-          npm install
-          npm run build
+          npm ci
 
-      - name: Compilar Frontend (Angular)
+      - name: Ejecutar Tests Unitarios (Vitest)
         run: |
-          cd frontend
-          npm install
-          npm run build
+          cd backend
+          npm test
 
-  deploy-vps:
-    needs: build-and-test
+  deploy:
+    name: Despliegue en VPS
+    needs: test
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
     steps:
-      - name: Desplegar en VPS Lightsail vía SSH
+      - name: Desplegar en VPS vía SSH
         uses: appleboy/ssh-action@v1.0.3
+        env:
+          ENV_PRODUCTION: ${{ secrets.ENV_PRODUCTION }}
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
+          port: ${{ secrets.VPS_PORT || 22 }}
+          envs: ENV_PRODUCTION
           script: |
-            cd ~/hackeados
-            git pull origin main
-            # Despliega solo el backend sin reiniciar la base de datos
+            set -e
+
+            # 1. Directorio del proyecto en la VPS
+            PROJECT_DIR="${{ secrets.VPS_PROJECT_DIR || '/opt/hackeados' }}"
+            mkdir -p "$PROJECT_DIR"
+            cd "$PROJECT_DIR"
+
+            # 2. Descargar últimos cambios de Git
+            if [ -d .git ]; then
+              git pull origin main
+            fi
+
+            # 3. Inyectar secretos de producción en .env
+            echo "$ENV_PRODUCTION" > .env
+            chmod 600 .env
+
+            # 4. Asegurar existencia de red Docker interna
+            docker network create hackeados_net 2>/dev/null || true
+
+            # 5. Asegurar PostgreSQL activo (idempotente: no se reinicia si ya está corriendo)
+            docker compose -f docker-compose.db.yml up -d
+
+            # 6. Reconstruir y desplegar ÚNICAMENTE el Backend
             docker compose -f docker-compose.app.yml up -d --build backend
+
+            # 7. Limpiar imágenes huérfanas para ahorrar disco en la VPS
+            docker image prune -f

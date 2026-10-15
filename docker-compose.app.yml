@@ -8,14 +8,14 @@ services:
     ports:
       - "3000:3000"
     environment:
-      - DB_HOST=postgres
-      - DB_PORT=5432
-      - DB_USER=${DB_USER:-hackeados_admin}
-      - DB_PASSWORD=${DB_PASSWORD:-hackeados_secret_2026}
-      - DB_NAME=${DB_NAME:-hackeados_db}
+      - DB_HOST=${DB_HOST:-postgres}
+      - DB_PORT=${DB_PORT:-5432}
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_NAME=${DB_NAME}
       - PORT=3000
       - NODE_ENV=production
-      - CORS_ORIGIN=http://localhost:4200,https://hackeados.geislera.com
+      - CORS_ORIGIN=${CORS_ORIGIN:-https://hackeados.geislera.com,http://localhost:4200,http://127.0.0.1:4200}
       - GROQ_API_KEY=${GROQ_API_KEY}
       - GROQ_MODEL=${GROQ_MODEL:-llama-3.3-70b-versatile}
       - GEMINI_API_KEY=${GEMINI_API_KEY}

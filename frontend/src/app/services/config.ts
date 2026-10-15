@@ -4,6 +4,6 @@ export const AppConfig = {
     if (host === 'localhost' || host === '127.0.0.1') {
       return 'http://localhost:3000';
     }
-    return 'https://api-hackeados.geislera.com';
+    return 'https://hackeados.api.geislera.com';
   },
 };
