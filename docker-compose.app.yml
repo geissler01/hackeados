@@ -6,20 +6,20 @@ services:
     container_name: hackeados_backend
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      - "${APP_HOST_PORT}:${PORT}"
     environment:
-      - DB_HOST=${DB_HOST:-postgres}
-      - DB_PORT=${DB_PORT:-5432}
+      - DB_HOST=${DB_HOST}
+      - DB_PORT=${DB_PORT}
       - DB_USER=${DB_USER}
       - DB_PASSWORD=${DB_PASSWORD}
       - DB_NAME=${DB_NAME}
-      - PORT=3000
-      - NODE_ENV=production
-      - CORS_ORIGIN=${CORS_ORIGIN:-https://hackeados.geislera.com,http://localhost:4200,http://127.0.0.1:4200}
+      - PORT=${PORT}
+      - NODE_ENV=${NODE_ENV}
+      - CORS_ORIGIN=${CORS_ORIGIN}
       - GROQ_API_KEY=${GROQ_API_KEY}
-      - GROQ_MODEL=${GROQ_MODEL:-llama-3.3-70b-versatile}
+      - GROQ_MODEL=${GROQ_MODEL}
       - GEMINI_API_KEY=${GEMINI_API_KEY}
-      - GEMINI_MODEL=${GEMINI_MODEL:-gemini-1.5-flash}
+      - GEMINI_MODEL=${GEMINI_MODEL}
     networks:
       - hackeados_net
 

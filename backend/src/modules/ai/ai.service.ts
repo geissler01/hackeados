@@ -73,7 +73,7 @@ Responde únicamente el bloque JSON, sin texto antes ni después.`;
     if (this.groqClient) {
       const res = await this.groqClient.chat.completions.create({
         messages: [{ role: 'user', content: prompt }],
-        model: process.env.GROQ_MODEL || 'llama-3.3-70b-versatile',
+        model: process.env.GROQ_MODEL as string,
         response_format: { type: 'json_object' },
       });
       const text = res.choices[0]?.message?.content || '[]';
@@ -81,7 +81,7 @@ Responde únicamente el bloque JSON, sin texto antes ni después.`;
     }
     if (this.geminiClient) {
       const res = await this.geminiClient.models.generateContent({
-        model: process.env.GEMINI_MODEL || 'gemini-1.5-flash',
+        model: process.env.GEMINI_MODEL as string,
         contents: prompt,
       });
       return res.text || '[]';

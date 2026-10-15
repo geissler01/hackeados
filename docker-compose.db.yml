@@ -4,7 +4,7 @@ services:
     container_name: hackeados_postgres
     restart: unless-stopped
     ports:
-      - "5432:5432"
+      - "127.0.0.1:${DB_HOST_PORT}:${DB_PORT}"
     environment:
       POSTGRES_USER: ${DB_USER}
       POSTGRES_PASSWORD: ${DB_PASSWORD}

@@ -8,7 +8,10 @@ async function bootstrap() {
 
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
 
-  const allowedOrigins = (process.env.CORS_ORIGIN || '*')
+  if (!process.env.PORT) throw new Error('Variable de entorno PORT es requerida');
+  if (!process.env.CORS_ORIGIN) throw new Error('Variable de entorno CORS_ORIGIN es requerida');
+
+  const allowedOrigins = process.env.CORS_ORIGIN
     .split(',')
     .map((origin) => origin.trim());
 
@@ -18,9 +21,9 @@ async function bootstrap() {
     credentials: true,
   });
 
-  const port = process.env.PORT || 3000;
+  const port = parseInt(process.env.PORT, 10);
   await app.listen(port);
-  logger.log(`Servidor Hackeados iniciado en: http://localhost:${port}`);
+  logger.log(`Servidor Hackeados iniciado en puerto: ${port}`);
 }
 
 bootstrap();
