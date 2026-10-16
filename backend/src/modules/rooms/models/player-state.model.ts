@@ -14,6 +14,7 @@ export class PlayerLiveState {
   activeAttackerSocketId?: string;
   activeTargetSocketId?: string;
   currentQuestionIndex: number = 0;
+  questionOrder: number[] = [];
   connected: boolean = true;
   disconnectedAt?: number;
 

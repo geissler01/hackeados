@@ -17,9 +17,16 @@ export class GameActionHandlerService {
   requestQuestion(client: Socket) {
     const room = this.rooms.getRoomBySocket(client.id);
     const p = room?.players.get(client.id);
-    if (!room || !p || room.status !== 'PLAYING') return null;
-    const q = room.questionsPool[p.currentQuestionIndex % room.questionsPool.length];
+    if (!room || !p || room.status !== 'PLAYING' || !room.questionsPool?.length) return null;
+
+    if (!p.questionOrder || p.questionOrder.length !== room.questionsPool.length) {
+      p.questionOrder = Array.from({ length: room.questionsPool.length }, (_, i) => i)
+        .sort(() => Math.random() - 0.5);
+    }
+
+    const poolIndex = p.questionOrder[p.currentQuestionIndex % p.questionOrder.length];
     p.currentQuestionIndex += 1;
+    const q = room.questionsPool[poolIndex];
     return { id: q.id, questionText: q.questionText, options: q.options };
   }
 
