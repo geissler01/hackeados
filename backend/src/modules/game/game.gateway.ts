@@ -126,6 +126,8 @@ export class GameGateway implements OnGatewayDisconnect {
   async handleStartGame(@ConnectedSocket() client: Socket, @MessageBody() data: { roomCode: string }) {
     const room = this.rooms.getRoom(data.roomCode);
     if (!room || room.players.size < 2) return { success: false, message: 'Mínimo 2 jugadores activos requeridos' };
+    const questionsCount = await this.questions.getCategoryQuestionsCount(room.categoryId);
+    if (questionsCount < 50) return { success: false, message: 'Se requieren al menos 50 preguntas en el banco para iniciar' };
     await this.coordinator.startGame(data.roomCode);
     let optIdx = 0;
     for (const p of room.players.values()) {

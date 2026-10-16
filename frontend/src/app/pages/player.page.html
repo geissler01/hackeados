@@ -36,7 +36,13 @@
               [disabled]="!canStart()"
               (click)="onStartGame()"
             >
-              {{ canStart() ? '¡INICIAR PARTIDA! (' + connectedPlayers().length + ' LISTOS)' : 'INICIAR PARTIDA (' + connectedPlayers().length + '/2 JUGADORES)' }}
+              @if (questionsCount() < minRequired()) {
+                ⏳ BANCO IA ({{ questionsCount() }}/{{ minRequired() }} MÍN)...
+              } @else if (connectedPlayers().length < 2) {
+                INICIAR PARTIDA ({{ connectedPlayers().length }}/2 JUGADORES)
+              } @else {
+                ¡INICIAR PARTIDA! ({{ connectedPlayers().length }} LISTOS)
+              }
             </button>
             <p class="host-badge font-mono">👑 ERES EL ANFITRIÓN DE ESTA SALA</p>
           </div>
@@ -105,7 +111,14 @@
           <div class="question-text">{{ currentQuestion().questionText }}</div>
           <div class="answers-grid">
             @for (opt of currentQuestion().options; track $index) {
-              <button class="answer-btn font-mono" (click)="submitAnswer($index)">
+              <button
+                class="answer-btn font-mono"
+                [class.selected]="selectedAnswer() === $index"
+                [class.correct]="revealedCorrectAnswer() === $index"
+                [class.wrong]="selectedAnswer() === $index && revealedCorrectAnswer() !== $index"
+                [disabled]="isSubmittingAnswer()"
+                (click)="submitAnswer($index)"
+              >
                 <span class="opt-key">[{{ ['A', 'B', 'C', 'D'][$index] }}]</span> {{ opt }}
               </button>
             }

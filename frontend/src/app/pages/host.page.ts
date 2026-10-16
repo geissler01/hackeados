@@ -121,7 +121,9 @@ export class HostPage implements OnInit {
     return `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${url}`;
   }
 
-  canStart(): boolean { return this.players().length >= 2; }
+  canStart(): boolean {
+    return this.players().length >= 2 && this.questionsCount() >= this.minRequired();
+  }
 
   async onStartGame(): Promise<void> {
     if (!this.canStart()) return;

@@ -105,7 +105,13 @@
             [disabled]="!canStart()"
             (click)="onStartGame()"
           >
-            {{ canStart() ? '¡INICIAR PARTIDA! (' + players().length + ' LISTOS)' : 'INICIAR PARTIDA (' + players().length + '/2 JUGADORES)' }}
+            @if (questionsCount() < minRequired()) {
+              ⏳ PREPARANDO BANCO IA ({{ questionsCount() }}/{{ minRequired() }} MÍN)...
+            } @else if (players().length < 2) {
+              ESPERANDO JUGADORES ({{ players().length }}/2 LISTOS)...
+            } @else {
+              ¡INICIAR PARTIDA! ({{ players().length }} LISTOS)
+            }
           </button>
           <button class="btn-cancel-room font-mono" (click)="goHome()">[ ✕ Abandonar / Cerrar Sala ]</button>
         </div>

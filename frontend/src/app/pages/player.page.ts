@@ -35,6 +35,9 @@ export class PlayerPage implements OnInit {
   readonly questionsCount = signal(0);
   readonly questionsTarget = signal(100);
   readonly minRequired = signal(50);
+  readonly selectedAnswer = signal<number | null>(null);
+  readonly revealedCorrectAnswer = signal<number | null>(null);
+  readonly isSubmittingAnswer = signal(false);
   readonly score = this.quiz.score; readonly currentQuestion = this.quiz.currentQuestion;
   readonly hackCountdown = this.duel.hackCountdown; readonly hackOptions = this.duel.hackOptions;
   readonly victimMinigame = this.duel.victimMinigame;
@@ -90,7 +93,7 @@ export class PlayerPage implements OnInit {
     this.socket.on<any>('game:ended', (d) => { clearInterval(this.pwdTimer); this.currentView.set('ENDED'); if (d?.finalLeaderboard) this.leaderboard.set(d.finalLeaderboard); });
   }
 
-  canStart(): boolean { return this.connectedPlayers().length >= 2; }
+  canStart(): boolean { return this.connectedPlayers().length >= 2 && this.questionsCount() >= this.minRequired(); }
   onStartGame(): void { if (this.canStart()) this.socket.emit('game:start', { roomCode: this.roomCode }); }
   getAvatar(id: number): SafeHtml { return this.sanitizer.bypassSecurityTrustHtml(this.avatar.getAvatarSvg(id)); }
   selectPassword(pwd: string): void { this.selectedPassword.set(pwd); this.socket.emit('player:set_password', { password: pwd }); }
@@ -103,9 +106,29 @@ export class PlayerPage implements OnInit {
   }
 
   async submitAnswer(idx: number): Promise<void> {
-    if (this.currentView() === 'ENDED' || this.timeRemaining() <= 0) return;
-    if (await this.quiz.submitAnswer(this.currentQuestion().id, idx)) this.setView('CARDS');
-    else setTimeout(() => { if (this.currentView() !== 'ENDED') this.quiz.requestNextQuestion(); }, 1800);
+    if (this.currentView() === 'ENDED' || this.timeRemaining() <= 0 || this.isSubmittingAnswer()) return;
+    this.isSubmittingAnswer.set(true);
+    this.selectedAnswer.set(idx);
+    const res = await this.quiz.submitAnswer(this.currentQuestion().id, idx);
+    this.revealedCorrectAnswer.set(res.correctAnswerIndex);
+
+    if (res.correct) {
+      setTimeout(() => {
+        this.resetAnswerState();
+        this.setView('CARDS');
+      }, 700);
+    } else {
+      setTimeout(() => {
+        this.resetAnswerState();
+        if (this.currentView() !== 'ENDED') this.quiz.requestNextQuestion();
+      }, 1600);
+    }
+  }
+
+  private resetAnswerState(): void {
+    this.selectedAnswer.set(null);
+    this.revealedCorrectAnswer.set(null);
+    this.isSubmittingAnswer.set(false);
   }
 
   async onPickCard(slot: number, picker: CardsPickerComponent): Promise<void> {

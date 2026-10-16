@@ -20,16 +20,20 @@ export class PlayerQuizService {
     return q;
   }
 
-  async submitAnswer(questionId: string, answerIndex: number): Promise<boolean> {
+  async submitAnswer(questionId: string, answerIndex: number): Promise<{ correct: boolean; correctAnswerIndex: number }> {
     const res: any = await this.socket.emitWithAck('quiz:submit_answer', { questionId, answerIndex });
-    if (res?.correct) {
+    const isCorrect = !!res?.correct;
+    if (isCorrect) {
       this.audio.playCorrect();
       this.haptics.success();
-      return true;
+    } else {
+      this.audio.playWrong();
+      this.haptics.error();
     }
-    this.audio.playWrong();
-    this.haptics.error();
-    return false;
+    return {
+      correct: isCorrect,
+      correctAnswerIndex: typeof res?.correctAnswerIndex === 'number' ? res.correctAnswerIndex : -1,
+    };
   }
 
   async pickCard(slot: number): Promise<any> {
