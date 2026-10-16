@@ -35,16 +35,14 @@ export class AiService {
   }
 
   async generateBatch(catId: string, count = 10): Promise<number> {
-    const subtopic = await this.subtopicRepo.createQueryBuilder('s')
-      .leftJoin('questions', 'q', 'q.subtopic_id = s.id')
-      .where('s.category_id = :catId', { catId })
+    const sub = await this.subtopicRepo.createQueryBuilder('s')
+      .leftJoin('questions', 'q', 'q.subtopic_id = s.id').where('s.category_id = :catId', { catId })
       .groupBy('s.id').addGroupBy('s.name').addGroupBy('s.prompt_keywords')
       .orderBy('COUNT(q.id)', 'ASC').addOrderBy('RANDOM()').getOne();
 
-    const topic = subtopic?.name || catId;
-    const kw = subtopic?.promptKeywords ? ` Temas: ${subtopic.promptKeywords}.` : '';
-    const prompt = `Genera exactamente ${count} preguntas de trivia en español sobre "${topic}".${kw}
-Formato JSON: {"questions": [{"questionText": "...", "options": ["op1","op2","op3","op4"], "correctIndex": 0}]}. Solo JSON.`;
+    const topic = sub?.name || catId;
+    const kw = sub?.promptKeywords ? ` Temas: ${sub.promptKeywords}.` : '';
+    const prompt = `Genera ${count} preguntas de trivia en español sobre "${topic}".${kw}\nREGLAS: Todas las 4 opciones deben tener longitud y detalle similar (la correcta NUNCA debe ser la más larga ni más descriptiva). Opciones incorrectas realistas. Variar correctIndex (0 a 3).\nFormato JSON: {"questions": [{"questionText": "...", "options": ["o1","o2","o3","o4"], "correctIndex": 0}]}. Solo JSON.`;
 
     try {
       const raw = await this.callAiProvider(prompt);
@@ -53,11 +51,14 @@ Formato JSON: {"questions": [{"questionText": "...", "options": ["op1","op2","op
       let inserted = 0;
       for (const item of list) {
         if (!item.questionText || !Array.isArray(item.options) || item.options.length !== 4) continue;
+        if (typeof item.correctIndex !== 'number' || item.correctIndex < 0 || item.correctIndex > 3) continue;
         const exists = await this.questionRepo.findOne({ where: { questionText: item.questionText } });
         if (!exists) {
+          const correctText = item.options[item.correctIndex];
+          const shuffled = [...item.options].sort(() => Math.random() - 0.5);
           await this.questionRepo.save(this.questionRepo.create({
-            categoryId: catId, subtopicId: subtopic?.id, questionText: item.questionText,
-            options: item.options, correctIndex: item.correctIndex,
+            categoryId: catId, subtopicId: sub?.id, questionText: item.questionText,
+            options: shuffled, correctIndex: shuffled.indexOf(correctText),
           }));
           inserted++;
         }

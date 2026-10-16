@@ -33,13 +33,14 @@ export class GameActionHandlerService {
   submitAnswer(client: Socket, data: { questionId: string; answerIndex: number }) {
     const room = this.rooms.getRoomBySocket(client.id);
     const p = room?.players.get(client.id);
-    return room && p ? this.coordinator.processAnswer(p, room, data.questionId, data.answerIndex) : null;
+    if (!room || !p || room.status !== 'PLAYING') return null;
+    return this.coordinator.processAnswer(p, room, data.questionId, data.answerIndex);
   }
 
   pickCard(server: Server, client: Socket, data?: { slot?: number }) {
     const room = this.rooms.getRoomBySocket(client.id);
     const p = room?.players.get(client.id);
-    if (!room || !p) return null;
+    if (!room || !p || room.status !== 'PLAYING') return null;
 
     const slot = typeof data?.slot === 'number' ? data.slot : 0;
     const res = this.coordinator.pickCard(p, room, slot);
@@ -66,7 +67,7 @@ export class GameActionHandlerService {
     const room = this.rooms.getRoomBySocket(client.id);
     const attacker = room?.players.get(client.id);
     const victim = room?.players.get(data.targetSocketId);
-    if (!attacker || !victim) return { success: false, stolenPoints: 0 };
+    if (!room || room.status !== 'PLAYING' || !attacker || !victim) return { success: false, stolenPoints: 0 };
 
     attacker.activeTargetSocketId = undefined;
     const wasDefending = victim.isDefending;

@@ -47,13 +47,23 @@ export class PlayerPage implements OnInit {
     sessionStorage.setItem('hackeados_play_room', this.roomCode); sessionStorage.setItem('hackeados_play_nick', this.nickname);
     this.bindSocketEvents();
     this.socket.emitWithAck('room:reconnect', { roomCode: this.roomCode, role: 'player', nickname: this.nickname }).then((res: any) => {
-      if (!res?.success || res?.status === 'ENDED') { this.goHome(); return; }
+      if (!res?.success) { this.goHome(); return; }
+      if (res.status === 'ENDED') {
+        if (res.players) this.leaderboard.set(res.players.sort((a: any, b: any) => b.score - a.score));
+        this.currentView.set('ENDED');
+        return;
+      }
       if (res.players) this.connectedPlayers.set(res.players);
       if (res.isHost) this.isHost.set(true);
       if (res.theme) document.documentElement.setAttribute('data-theme', res.theme);
       if (res.status === 'PASSWORD_SETUP') this.startPasswordSetup({ options: res.options, durationSeconds: 10 });
-      else if (res.status === 'PLAYING') this.quiz.requestNextQuestion().then(() => this.currentView.set('QUIZ'));
+      else if (res.status === 'PLAYING') this.quiz.requestNextQuestion().then(() => this.setView('QUIZ'));
     });
+  }
+
+  private setView(view: 'LOBBY' | 'PASSWORDS' | 'QUIZ' | 'CARDS' | 'HACKING' | 'DEFENDING' | 'ENDED'): void {
+    if (this.currentView() === 'ENDED') return;
+    this.currentView.set(view);
   }
 
   private bindSocketEvents(): void {
@@ -66,14 +76,18 @@ export class PlayerPage implements OnInit {
     });
     this.socket.on<any>('room:config_updated', (d) => { if (d?.theme) document.documentElement.setAttribute('data-theme', d.theme); });
     this.socket.on<any>('game:setup_passwords', (d) => this.startPasswordSetup(d));
-    this.socket.on<any>('game:started', (d) => { if (d?.theme) document.documentElement.setAttribute('data-theme', d.theme); clearInterval(this.pwdTimer); this.quiz.requestNextQuestion().then(() => this.currentView.set('QUIZ')); });
-    this.socket.on<any>('game:tick', (d) => { this.timeRemaining.set(d.time); if (d.leaderboard) this.leaderboard.set(d.leaderboard); });
+    this.socket.on<any>('game:started', (d) => { if (d?.theme) document.documentElement.setAttribute('data-theme', d.theme); clearInterval(this.pwdTimer); this.quiz.requestNextQuestion().then(() => this.setView('QUIZ')); });
+    this.socket.on<any>('game:tick', (d) => {
+      this.timeRemaining.set(d.time);
+      if (d.leaderboard) this.leaderboard.set(d.leaderboard);
+      if (d.time <= 0) { clearInterval(this.pwdTimer); this.currentView.set('ENDED'); }
+    });
     this.socket.on<any>('game:event_broadcast', (msg) => this.tickerMessages.update((m) => [...m.slice(-9), msg]));
-    this.socket.on<any>('hack:alert_victim', (d) => { this.duel.triggerDefense(d.minigameType); this.currentView.set('DEFENDING'); });
-    this.socket.on<any>('hack:defense_cleared', () => { this.audio.playCorrect(); this.currentView.set('QUIZ'); this.quiz.requestNextQuestion(); });
-    this.socket.on<any>('hack:aborted', () => { this.duel.cancelHacking(); this.audio.playWrong(); this.currentView.set('QUIZ'); this.quiz.requestNextQuestion(); });
-    this.socket.on<any>('hack:breach_confirmed', (d) => { this.haptics.error(); this.audio.playWrong(); if (d?.stolenPoints) { this.score.update((s) => Math.max(0, s - d.stolenPoints)); this.triggerFloating(-d.stolenPoints); } this.currentView.set('QUIZ'); this.quiz.requestNextQuestion(); });
-    this.socket.on<any>('game:ended', (d) => { this.currentView.set('ENDED'); if (d?.finalLeaderboard) this.leaderboard.set(d.finalLeaderboard); });
+    this.socket.on<any>('hack:alert_victim', (d) => { if (this.currentView() === 'ENDED') return; this.duel.triggerDefense(d.minigameType); this.setView('DEFENDING'); });
+    this.socket.on<any>('hack:defense_cleared', () => { if (this.currentView() === 'ENDED') return; this.audio.playCorrect(); this.setView('QUIZ'); this.quiz.requestNextQuestion(); });
+    this.socket.on<any>('hack:aborted', () => { if (this.currentView() === 'ENDED') return; this.duel.cancelHacking(); this.audio.playWrong(); this.setView('QUIZ'); this.quiz.requestNextQuestion(); });
+    this.socket.on<any>('hack:breach_confirmed', (d) => { if (this.currentView() === 'ENDED') return; this.haptics.error(); this.audio.playWrong(); if (d?.stolenPoints) { this.score.update((s) => Math.max(0, s - d.stolenPoints)); this.triggerFloating(-d.stolenPoints); } this.setView('QUIZ'); this.quiz.requestNextQuestion(); });
+    this.socket.on<any>('game:ended', (d) => { clearInterval(this.pwdTimer); this.currentView.set('ENDED'); if (d?.finalLeaderboard) this.leaderboard.set(d.finalLeaderboard); });
   }
 
   canStart(): boolean { return this.connectedPlayers().length >= 2; }
@@ -82,18 +96,20 @@ export class PlayerPage implements OnInit {
   selectPassword(pwd: string): void { this.selectedPassword.set(pwd); this.socket.emit('player:set_password', { password: pwd }); }
 
   startPasswordSetup(d: any): void {
-    if (this.currentView() === 'PASSWORDS') return;
+    if (this.currentView() === 'PASSWORDS' || this.currentView() === 'ENDED') return;
     clearInterval(this.pwdTimer);
-    this.passwordOptions.set(d.options || []); this.passwordCountdown.set(d.durationSeconds || 10); this.currentView.set('PASSWORDS');
+    this.passwordOptions.set(d.options || []); this.passwordCountdown.set(d.durationSeconds || 10); this.setView('PASSWORDS');
     this.pwdTimer = setInterval(() => this.passwordCountdown.update((c) => (c > 0 ? c - 1 : 0)), 1000);
   }
 
   async submitAnswer(idx: number): Promise<void> {
-    if (await this.quiz.submitAnswer(this.currentQuestion().id, idx)) this.currentView.set('CARDS');
-    else setTimeout(() => this.quiz.requestNextQuestion(), 1800);
+    if (this.currentView() === 'ENDED' || this.timeRemaining() <= 0) return;
+    if (await this.quiz.submitAnswer(this.currentQuestion().id, idx)) this.setView('CARDS');
+    else setTimeout(() => { if (this.currentView() !== 'ENDED') this.quiz.requestNextQuestion(); }, 1800);
   }
 
   async onPickCard(slot: number, picker: CardsPickerComponent): Promise<void> {
+    if (this.currentView() === 'ENDED' || this.timeRemaining() <= 0) return;
     const prevScore = this.score();
     const res = await this.quiz.pickCard(slot);
     if (!res) return;
@@ -101,10 +117,11 @@ export class PlayerPage implements OnInit {
     if (diff !== 0) this.triggerFloating(diff);
     picker.reveal(res.allCards || [res.reward]);
     setTimeout(() => {
+      if (this.currentView() === 'ENDED') return;
       if (res.reward.type === 'HACK' && res.hackData) {
-        this.currentView.set('HACKING');
-        this.duel.startHacking(res.hackData, () => { this.currentView.set('QUIZ'); this.quiz.requestNextQuestion(); });
-      } else { this.currentView.set('QUIZ'); this.quiz.requestNextQuestion(); }
+        this.setView('HACKING');
+        this.duel.startHacking(res.hackData, () => { if (this.currentView() !== 'ENDED') { this.setView('QUIZ'); this.quiz.requestNextQuestion(); } });
+      } else { this.setView('QUIZ'); this.quiz.requestNextQuestion(); }
     }, 2000);
   }
 
@@ -118,11 +135,10 @@ export class PlayerPage implements OnInit {
     } else {
       this.audio.playWrong();
     }
-    this.currentView.set('QUIZ');
-    this.quiz.requestNextQuestion();
+    if (this.currentView() !== 'ENDED') { this.setView('QUIZ'); this.quiz.requestNextQuestion(); }
   }
 
-  onDefenseSuccess(): void { this.duel.completeDefense(); this.currentView.set('QUIZ'); this.quiz.requestNextQuestion(); }
+  onDefenseSuccess(): void { this.duel.completeDefense(); if (this.currentView() !== 'ENDED') { this.setView('QUIZ'); this.quiz.requestNextQuestion(); } }
   private triggerFloating(pts: number): void { this.floatingPoints.set(pts); setTimeout(() => this.floatingPoints.set(null), 1400); }
   async goHome(): Promise<void> { try { await this.socket.emitWithAck('room:leave'); } catch {} sessionStorage.clear(); this.router.navigate(['/']); }
 }

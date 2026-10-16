@@ -52,7 +52,11 @@ export class HostPage implements OnInit {
       const t = setInterval(() => { this.setupCountdown.update((c) => (c > 1 ? c - 1 : 0)); if (this.setupCountdown() <= 0) clearInterval(t); }, 1000);
     });
     this.socket.on('game:started', () => this.status.set('PLAYING'));
-    this.socket.on<any>('game:tick', (d) => { this.timeRemaining.set(d.time); this.leaderboard.set(d.leaderboard || []); });
+    this.socket.on<any>('game:tick', (d) => {
+      this.timeRemaining.set(d.time);
+      this.leaderboard.set(d.leaderboard || []);
+      if (d.time <= 0) this.status.set('ENDED');
+    });
     this.socket.on<any>('game:event_broadcast', (msg) => this.tickerMessages.update((m) => [...m.slice(-9), msg]));
     this.socket.on('room:closed', () => this.goHome());
     this.socket.on<any>('game:ended', (d) => { this.status.set('ENDED'); if (d?.finalLeaderboard) this.leaderboard.set(d.finalLeaderboard); });
@@ -63,7 +67,11 @@ export class HostPage implements OnInit {
     if (saved) {
       const res: any = await this.socket.emitWithAck('room:reconnect', { roomCode: saved, role: 'host' });
       if (res?.success) {
-        if (res.status === 'ENDED') { this.goHome(); return; }
+        if (res.status === 'ENDED') {
+          this.status.set('ENDED');
+          if (res.players) this.leaderboard.set(res.players.sort((a: any, b: any) => b.score - a.score));
+          return;
+        }
         this.roomCode.set(res.roomCode); this.status.set(res.status); this.players.set(res.players || []);
         if (res.theme) { this.theme.set(res.theme); document.documentElement.setAttribute('data-theme', res.theme); }
         return;
