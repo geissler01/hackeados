@@ -14,6 +14,7 @@ export interface CategoryOption {
   label: string;
   desc: string;
   icon: string;
+  questionsCount?: number;
 }
 
 @Component({
@@ -61,6 +62,7 @@ export class RoomSettingsComponent implements OnInit {
             label: c.name,
             desc: c.description || '',
             icon: iconMap[c.id] || '💡',
+            questionsCount: c.questionsCount || 0,
           }));
         }
       })

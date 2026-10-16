@@ -81,6 +81,9 @@ export class HostPage implements OnInit {
   }
 
   onConfigChange(cfg: RoomConfig): void {
+    if (cfg.categoryId !== this.categoryId()) {
+      this.questionsCount.set(0);
+    }
     this.categoryId.set(cfg.categoryId); this.durationSeconds.set(cfg.durationSeconds); this.theme.set(cfg.theme);
     this.socket.emit('room:update_config', { roomCode: this.roomCode(), ...cfg });
   }

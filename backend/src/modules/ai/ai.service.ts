@@ -29,11 +29,12 @@ export class AiService {
       const ins = await this.generateBatch(catId, 10);
       current = await this.questionRepo.count({ where: { categoryId: catId } });
       if (onProg) onProg(current);
-      if (ins === 0 && attempts > 3) break;
+      if (ins === 0 && attempts > 4) break;
+      await new Promise((r) => setTimeout(r, 1500));
     }
   }
 
-  async generateBatch(catId: string, count = 15): Promise<number> {
+  async generateBatch(catId: string, count = 10): Promise<number> {
     const subtopic = await this.subtopicRepo.createQueryBuilder('s')
       .leftJoin('questions', 'q', 'q.subtopic_id = s.id')
       .where('s.category_id = :catId', { catId })
@@ -54,11 +55,10 @@ Formato JSON: {"questions": [{"questionText": "...", "options": ["op1","op2","op
         if (!item.questionText || !Array.isArray(item.options) || item.options.length !== 4) continue;
         const exists = await this.questionRepo.findOne({ where: { questionText: item.questionText } });
         if (!exists) {
-          const q = this.questionRepo.create({
+          await this.questionRepo.save(this.questionRepo.create({
             categoryId: catId, subtopicId: subtopic?.id, questionText: item.questionText,
             options: item.options, correctIndex: item.correctIndex,
-          });
-          await this.questionRepo.save(q);
+          }));
           inserted++;
         }
       }
@@ -72,20 +72,30 @@ Formato JSON: {"questions": [{"questionText": "...", "options": ["op1","op2","op
 
   private async callAiProvider(prompt: string): Promise<string> {
     if (this.groqClient) {
-      const res = await this.groqClient.chat.completions.create({
-        messages: [{ role: 'user', content: prompt }],
-        model: process.env.GROQ_MODEL as string,
-        response_format: { type: 'json_object' },
-      });
-      const text = res.choices[0]?.message?.content || '[]';
-      return text.trim().startsWith('[') ? text : (JSON.parse(text).questions ? JSON.stringify(JSON.parse(text).questions) : text);
+      try {
+        const res = await this.groqClient.chat.completions.create({
+          messages: [{ role: 'user', content: prompt }],
+          model: (process.env.GROQ_MODEL as string) || 'qwen/qwen3.8-27b',
+          response_format: { type: 'json_object' },
+        });
+        const text = res.choices[0]?.message?.content || '[]';
+        return text.trim().startsWith('[') ? text : (JSON.parse(text).questions ? JSON.stringify(JSON.parse(text).questions) : text);
+      } catch (err: any) {
+        this.logger.warn(`Groq falló (${err.message}). Intentando IA de respaldo (Gemini)...`);
+      }
     }
     if (this.geminiClient) {
-      const res = await this.geminiClient.models.generateContent({
-        model: process.env.GEMINI_MODEL as string, contents: prompt,
-      });
-      return res.text || '[]';
+      try {
+        const model = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+        const res = await this.geminiClient.models.generateContent({
+          model, contents: prompt + ' Responde únicamente con JSON válido.',
+        });
+        const clean = (res.text || '[]').replace(/```json/g, '').replace(/```/g, '').trim();
+        return clean;
+      } catch (err: any) {
+        this.logger.error(`Gemini de respaldo falló: ${err.message}`);
+      }
     }
-    throw new Error('No hay API Keys de IA configuradas');
+    throw new Error('Todos los proveedores de IA fallaron');
   }
 }
