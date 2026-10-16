@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
     "module": "commonjs",
-    "moduleResolution": "node",
+    "moduleResolution": "bundler",
     "declaration": true,
     "removeComments": true,
     "emitDecoratorMetadata": true,
@@ -12,7 +12,6 @@
     "outDir": "./dist",
     "incremental": true,
     "skipLibCheck": true,
-    "strict": false,
-    "ignoreDeprecations": "6.0"
+    "strict": false
   }
 }

@@ -18,12 +18,12 @@ jobs:
         with:
           node-version: 22
           cache: 'npm'
-          cache-dependency-path: backend/package.json
+          cache-dependency-path: backend/package-lock.json
 
       - name: Instalar dependencias del Backend
         run: |
           cd backend
-          npm ci
+          npm install
 
       - name: Ejecutar Tests Unitarios (Vitest)
         run: |
