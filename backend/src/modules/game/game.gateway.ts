@@ -9,9 +9,11 @@ import { GameActionHandlerService } from './services/game-action-handler.service
 import { CreateRoomDto } from '../rooms/dto/create-room.dto';
 import { JoinRoomDto } from '../rooms/dto/join-room.dto';
 
+import { AiService } from '../ai/ai.service';
+
 @WebSocketGateway({ cors: { origin: '*' } })
 export class GameGateway implements OnGatewayDisconnect {
-  @WebSocketServer() server: Server;
+  @WebSocketServer() server!: Server;
 
   constructor(
     private readonly rooms: RoomsService,
@@ -20,6 +22,7 @@ export class GameGateway implements OnGatewayDisconnect {
     private readonly gameTimer: GameTimerService,
     private readonly coordinator: GameCoordinatorService,
     private readonly actions: GameActionHandlerService,
+    private readonly aiService: AiService,
   ) {}
 
   handleDisconnect(client: Socket) { this.disconnectHandler.handleDisconnect(this.server, client); }
@@ -29,6 +32,10 @@ export class GameGateway implements OnGatewayDisconnect {
     const room = this.rooms.createRoom(client.id, dto);
     client.join(room.roomCode);
     if (dto.isHostPlaying) this.server.to(room.roomCode).emit('room:players_updated', { players: Array.from(room.players.values()), theme: room.theme });
+    
+    // Generación progresiva con IA en segundo plano durante el Lobby
+    this.aiService.generateBatch(room.categoryId, 15).catch(() => {});
+
     return { roomCode: room.roomCode, categoryId: room.categoryId, durationSeconds: room.durationSeconds, theme: room.theme, isHostPlaying: dto.isHostPlaying };
   }
 

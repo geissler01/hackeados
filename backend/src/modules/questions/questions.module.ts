@@ -6,8 +6,10 @@ import { Subtopic } from '../../database/entities/subtopic.entity';
 import { QuestionsService } from './questions.service';
 import { QuestionsController } from './questions.controller';
 
+import { AiModule } from '../ai/ai.module';
+
 @Module({
-  imports: [TypeOrmModule.forFeature([Question, Category, Subtopic])],
+  imports: [TypeOrmModule.forFeature([Question, Category, Subtopic]), AiModule],
   controllers: [QuestionsController],
   providers: [QuestionsService],
   exports: [QuestionsService],

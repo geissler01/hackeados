@@ -33,12 +33,16 @@ export class RoomSettingsComponent {
   readonly tempCategoryId = signal('tecnologia');
 
   readonly categories: CategoryOption[] = [
-    { id: 'tecnologia', label: 'Ciberseguridad & Redes', desc: 'Hacking, protocolos, criptografía, terminal', icon: '💻' },
-    { id: 'cultura_general', label: 'Cultura General', desc: 'Historia, geografía, arte, literatura y cine', icon: '🌍' },
-    { id: 'ciencia', label: 'Ciencia & Naturaleza', desc: 'Astronomía, física, química y biología', icon: '🔬' },
-    { id: 'programacion', label: 'Desarrollo de Software', desc: 'Algoritmos, estructuras de datos, código', icon: '⚡' },
-    { id: 'videojuegos', label: 'Cultura Arcade & Gaming', desc: 'Historia del gaming, consolas, títulos retro', icon: '🕹️' },
-    { id: 'ia_tech', label: 'Inteligencia Artificial', desc: 'Machine Learning, redes neuronales, modelos', icon: '🤖' },
+    { id: 'tecnologia', label: 'Tecnología & Ciberseguridad', desc: 'Hacking ético, programación, redes, hardware y sistemas', icon: '💻' },
+    { id: 'cultura_general', label: 'Cultura General & Curiosidades', desc: 'Mitos, literatura, inventos, datos insólitos y récords', icon: '🌍' },
+    { id: 'ciencia', label: 'Ciencia & Naturaleza', desc: 'Astronomía, física, química, cuerpo humano y biología', icon: '🔬' },
+    { id: 'entretenimiento', label: 'Entretenimiento & Pop Culture', desc: 'Cine clásico y moderno, series, superhéroes y animación', icon: '🎬' },
+    { id: 'musica', label: 'Música & Ritmos del Mundo', desc: 'Rock, pop, salsa, vallenato, baladas e instrumentos', icon: '🎵' },
+    { id: 'historia', label: 'Historia Universal', desc: 'Civilizaciones antiguas, guerras mundiales e independencia', icon: '🏛️' },
+    { id: 'biblia', label: 'La Biblia & Relatos Sagrados', desc: 'Génesis, reyes, profetas, parábolas y vida de Jesús', icon: '📜' },
+    { id: 'campo_agro', label: 'El Campo, Agro & Ganadería', desc: 'Café de Colombia, ganadería, frutas, flores y vida rural', icon: '🌱' },
+    { id: 'deportes', label: 'Deportes & Campeonatos', desc: 'Fútbol mundial, ciclismo, Juegos Olímpicos y leyendas', icon: '⚽' },
+    { id: 'geografia_mundo', label: 'Geografía & Países del Mundo', desc: 'Capitales, banderas, cordilleras, ríos y maravillas', icon: '🗺️' },
   ];
 
   readonly durations = [

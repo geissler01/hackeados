@@ -9,9 +9,10 @@ import { GameDisconnectHandlerService } from './services/game-disconnect-handler
 import { GameActionHandlerService } from './services/game-action-handler.service';
 import { RoomsModule } from '../rooms/rooms.module';
 import { QuestionsModule } from '../questions/questions.module';
+import { AiModule } from '../ai/ai.module';
 
 @Module({
-  imports: [RoomsModule, QuestionsModule],
+  imports: [RoomsModule, QuestionsModule, AiModule],
   providers: [
     GameGateway,
     GameTimerService,

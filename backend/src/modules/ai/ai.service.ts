@@ -33,20 +33,22 @@ export class AiService {
       .orderBy('RANDOM()')
       .getOne();
 
-    const topicName = subtopic ? subtopic.name : categoryId;
-    const prompt = `Genera exactamente ${count} preguntas de trivia en español sobre "${topicName}".
-Formato JSON estricto: un arreglo de objetos con:
-- "questionText": texto de la pregunta (conciso)
+    const topicName = subtopic?.name || categoryId;
+    const keywords = subtopic?.promptKeywords ? ` Temas específicos: ${subtopic.promptKeywords}.` : '';
+    const prompt = `Genera exactamente ${count} preguntas de trivia en español sobre "${topicName}".${keywords}
+Formato JSON estricto: un objeto con la propiedad "questions" conteniendo un arreglo de objetos:
+- "questionText": texto de la pregunta (conciso y claro)
 - "options": arreglo con exactamente 4 opciones de texto
 - "correctIndex": número entero de 0 a 3 que indica la respuesta correcta.
-Responde únicamente el bloque JSON, sin texto antes ni después.`;
+Responde únicamente el objeto JSON con formato {"questions": [...]}, sin texto adicional.`;
 
     try {
       const rawJson = await this.callAiProvider(prompt);
       const parsed = JSON.parse(rawJson);
+      const list = Array.isArray(parsed) ? parsed : (parsed.questions || parsed.data || []);
       let inserted = 0;
 
-      for (const item of parsed) {
+      for (const item of list) {
         if (!item.questionText || !Array.isArray(item.options) || item.options.length !== 4) continue;
         const exists = await this.questionRepo.findOne({ where: { questionText: item.questionText } });
         if (!exists) {
