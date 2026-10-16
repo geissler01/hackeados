@@ -26,6 +26,26 @@
           (configChange)="onConfigChange($event)"
         ></app-room-settings>
 
+        <div class="questions-status-box font-mono">
+          <div class="qs-header">
+            <span class="qs-title">
+              <span class="pulse-dot" [class.ready]="questionsCount() >= minRequired()">●</span>
+              PREGUNTAS EN BANCO:
+            </span>
+            <span class="qs-count">{{ questionsCount() }} / {{ questionsTarget() }}</span>
+          </div>
+          <div class="qs-bar-track">
+            <div class="qs-bar-fill" [style.width.%]="(questionsCount() / questionsTarget()) * 100"></div>
+          </div>
+          <div class="qs-footer">
+            @if (questionsCount() >= minRequired()) {
+              <span class="qs-ready">✓ LISTO PARA JUGAR ({{ questionsCount() }} disponibles)</span>
+            } @else {
+              <span class="qs-loading">⚡ Generando preguntas con IA en segundo plano ({{ questionsCount() }}/{{ minRequired() }} mín)...</span>
+            }
+          </div>
+        </div>
+
         <div class="mode-section">
           <label class="font-mono section-label">ELIGE TU ROL EN ESTA SALA:</label>
           <div class="mode-selector-grid">

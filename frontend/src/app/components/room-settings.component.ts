@@ -1,6 +1,7 @@
-import { Component, EventEmitter, Input, Output, signal, computed } from '@angular/core';
+import { Component, EventEmitter, Input, Output, signal, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { AppConfig } from '../services/config';
 
 export interface RoomConfig {
   categoryId: string;
@@ -22,7 +23,7 @@ export interface CategoryOption {
   templateUrl: './room-settings.component.html',
   styleUrls: ['./room-settings.component.css'],
 })
-export class RoomSettingsComponent {
+export class RoomSettingsComponent implements OnInit {
   @Input() categoryId = 'tecnologia';
   @Input() durationSeconds = 300;
   @Input() theme: 'matrix-emerald' | 'cyber-arcade' | 'amber-crt' = 'matrix-emerald';
@@ -32,7 +33,7 @@ export class RoomSettingsComponent {
   readonly searchQuery = signal('');
   readonly tempCategoryId = signal('tecnologia');
 
-  readonly categories: CategoryOption[] = [
+  categories: CategoryOption[] = [
     { id: 'tecnologia', label: 'Tecnología & Ciberseguridad', desc: 'Hacking ético, programación, redes, hardware y sistemas', icon: '💻' },
     { id: 'cultura_general', label: 'Cultura General & Curiosidades', desc: 'Mitos, literatura, inventos, datos insólitos y récords', icon: '🌍' },
     { id: 'ciencia', label: 'Ciencia & Naturaleza', desc: 'Astronomía, física, química, cuerpo humano y biología', icon: '🔬' },
@@ -44,6 +45,27 @@ export class RoomSettingsComponent {
     { id: 'deportes', label: 'Deportes & Campeonatos', desc: 'Fútbol mundial, ciclismo, Juegos Olímpicos y leyendas', icon: '⚽' },
     { id: 'geografia_mundo', label: 'Geografía & Países del Mundo', desc: 'Capitales, banderas, cordilleras, ríos y maravillas', icon: '🗺️' },
   ];
+
+  ngOnInit(): void {
+    fetch(`${AppConfig.socketUrl}/categories`)
+      .then((res) => res.json())
+      .then((data: any[]) => {
+        if (Array.isArray(data) && data.length > 0) {
+          const iconMap: Record<string, string> = {
+            tecnologia: '💻', cultura_general: '🌍', ciencia: '🔬',
+            entretenimiento: '🎬', musica: '🎵', historia: '🏛️',
+            biblia: '📜', campo_agro: '🌱', deportes: '⚽', geografia_mundo: '🗺️'
+          };
+          this.categories = data.map((c) => ({
+            id: c.id,
+            label: c.name,
+            desc: c.description || '',
+            icon: iconMap[c.id] || '💡',
+          }));
+        }
+      })
+      .catch(() => {});
+  }
 
   readonly durations = [
     { seconds: 180, label: '3 MIN' },

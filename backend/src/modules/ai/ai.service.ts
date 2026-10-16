@@ -13,60 +13,59 @@ export class AiService {
   private geminiClient?: GoogleGenAI;
 
   constructor(
-    @InjectRepository(Question)
-    private readonly questionRepo: Repository<Question>,
-    @InjectRepository(Subtopic)
-    private readonly subtopicRepo: Repository<Subtopic>,
+    @InjectRepository(Question) private readonly questionRepo: Repository<Question>,
+    @InjectRepository(Subtopic) private readonly subtopicRepo: Repository<Subtopic>,
   ) {
-    if (process.env.GROQ_API_KEY) {
-      this.groqClient = new Groq({ apiKey: process.env.GROQ_API_KEY });
-    }
-    if (process.env.GEMINI_API_KEY) {
-      this.geminiClient = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+    if (process.env.GROQ_API_KEY) this.groqClient = new Groq({ apiKey: process.env.GROQ_API_KEY });
+    if (process.env.GEMINI_API_KEY) this.geminiClient = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+  }
+
+  async ensurePoolProgressively(catId: string, target = 100, onProg?: (c: number) => void): Promise<void> {
+    let current = await this.questionRepo.count({ where: { categoryId: catId } });
+    if (onProg) onProg(current);
+    let attempts = 0;
+    while (current < target && attempts < 15) {
+      attempts++;
+      const ins = await this.generateBatch(catId, 10);
+      current = await this.questionRepo.count({ where: { categoryId: catId } });
+      if (onProg) onProg(current);
+      if (ins === 0 && attempts > 3) break;
     }
   }
 
-  async generateBatch(categoryId: string, count: number = 15): Promise<number> {
-    const subtopic = await this.subtopicRepo
-      .createQueryBuilder('s')
-      .where('s.category_id = :categoryId', { categoryId })
-      .orderBy('RANDOM()')
-      .getOne();
+  async generateBatch(catId: string, count = 15): Promise<number> {
+    const subtopic = await this.subtopicRepo.createQueryBuilder('s')
+      .leftJoin('questions', 'q', 'q.subtopic_id = s.id')
+      .where('s.category_id = :catId', { catId })
+      .groupBy('s.id').addGroupBy('s.name').addGroupBy('s.prompt_keywords')
+      .orderBy('COUNT(q.id)', 'ASC').addOrderBy('RANDOM()').getOne();
 
-    const topicName = subtopic?.name || categoryId;
-    const keywords = subtopic?.promptKeywords ? ` Temas específicos: ${subtopic.promptKeywords}.` : '';
-    const prompt = `Genera exactamente ${count} preguntas de trivia en español sobre "${topicName}".${keywords}
-Formato JSON estricto: un objeto con la propiedad "questions" conteniendo un arreglo de objetos:
-- "questionText": texto de la pregunta (conciso y claro)
-- "options": arreglo con exactamente 4 opciones de texto
-- "correctIndex": número entero de 0 a 3 que indica la respuesta correcta.
-Responde únicamente el objeto JSON con formato {"questions": [...]}, sin texto adicional.`;
+    const topic = subtopic?.name || catId;
+    const kw = subtopic?.promptKeywords ? ` Temas: ${subtopic.promptKeywords}.` : '';
+    const prompt = `Genera exactamente ${count} preguntas de trivia en español sobre "${topic}".${kw}
+Formato JSON: {"questions": [{"questionText": "...", "options": ["op1","op2","op3","op4"], "correctIndex": 0}]}. Solo JSON.`;
 
     try {
-      const rawJson = await this.callAiProvider(prompt);
-      const parsed = JSON.parse(rawJson);
+      const raw = await this.callAiProvider(prompt);
+      const parsed = JSON.parse(raw);
       const list = Array.isArray(parsed) ? parsed : (parsed.questions || parsed.data || []);
       let inserted = 0;
-
       for (const item of list) {
         if (!item.questionText || !Array.isArray(item.options) || item.options.length !== 4) continue;
         const exists = await this.questionRepo.findOne({ where: { questionText: item.questionText } });
         if (!exists) {
           const q = this.questionRepo.create({
-            categoryId,
-            subtopicId: subtopic?.id,
-            questionText: item.questionText,
-            options: item.options,
-            correctIndex: item.correctIndex,
+            categoryId: catId, subtopicId: subtopic?.id, questionText: item.questionText,
+            options: item.options, correctIndex: item.correctIndex,
           });
           await this.questionRepo.save(q);
-          inserted += 1;
+          inserted++;
         }
       }
-      this.logger.log(`IA generó ${inserted} preguntas nuevas para ${categoryId}`);
+      this.logger.log(`IA generó ${inserted} preguntas para ${catId} (subtema: ${topic})`);
       return inserted;
     } catch (err: any) {
-      this.logger.error(`Error generando preguntas con IA: ${err.message}`);
+      this.logger.error(`Error generando preguntas: ${err.message}`);
       return 0;
     }
   }
@@ -83,8 +82,7 @@ Responde únicamente el objeto JSON con formato {"questions": [...]}, sin texto 
     }
     if (this.geminiClient) {
       const res = await this.geminiClient.models.generateContent({
-        model: process.env.GEMINI_MODEL as string,
-        contents: prompt,
+        model: process.env.GEMINI_MODEL as string, contents: prompt,
       });
       return res.text || '[]';
     }

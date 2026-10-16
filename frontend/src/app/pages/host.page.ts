@@ -30,6 +30,9 @@ export class HostPage implements OnInit {
   readonly durationSeconds = signal(300);
   readonly theme = signal<'matrix-emerald' | 'cyber-arcade' | 'amber-crt'>('matrix-emerald');
   readonly tickerMessages = signal<TickerMessage[]>([]);
+  readonly questionsCount = signal(0);
+  readonly questionsTarget = signal(100);
+  readonly minRequired = signal(50);
   hostNickname = 'ANFITRION';
 
   constructor(private socket: SocketService, private avatar: AvatarService, private sanitizer: DomSanitizer, private router: Router) {}
@@ -38,6 +41,11 @@ export class HostPage implements OnInit {
     this.socket.on('connect', () => this.initOrReconnect());
     if (this.socket.isConnected()) this.initOrReconnect();
     this.socket.on<any>('room:players_updated', (d) => this.players.set(d.players || []));
+    this.socket.on<any>('room:questions_progress', (d) => {
+      this.questionsCount.set(d.current || 0);
+      this.questionsTarget.set(d.target || 100);
+      this.minRequired.set(d.minRequired || 50);
+    });
     this.socket.on<any>('game:setup_passwords', (d) => {
       this.status.set('PASSWORD_SETUP');
       this.setupCountdown.set(d.durationSeconds || 10);

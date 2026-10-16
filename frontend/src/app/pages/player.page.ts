@@ -32,6 +32,9 @@ export class PlayerPage implements OnInit {
   readonly tickerMessages = signal<TickerMessage[]>([]); readonly passwordOptions = signal<string[]>([]);
   readonly selectedPassword = signal(''); readonly passwordCountdown = signal(10);
   readonly floatingPoints = signal<number | null>(null);
+  readonly questionsCount = signal(0);
+  readonly questionsTarget = signal(100);
+  readonly minRequired = signal(50);
   readonly score = this.quiz.score; readonly currentQuestion = this.quiz.currentQuestion;
   readonly hackCountdown = this.duel.hackCountdown; readonly hackOptions = this.duel.hackOptions;
   readonly victimMinigame = this.duel.victimMinigame;
@@ -56,6 +59,11 @@ export class PlayerPage implements OnInit {
   private bindSocketEvents(): void {
     this.socket.on('room:closed', () => this.goHome());
     this.socket.on<any>('room:players_updated', (d) => { this.connectedPlayers.set(d.players || []); if (d.hostSocketId && this.socket.socketId === d.hostSocketId) this.isHost.set(true); if (d.theme) document.documentElement.setAttribute('data-theme', d.theme); });
+    this.socket.on<any>('room:questions_progress', (d) => {
+      this.questionsCount.set(d.current || 0);
+      this.questionsTarget.set(d.target || 100);
+      this.minRequired.set(d.minRequired || 50);
+    });
     this.socket.on<any>('room:config_updated', (d) => { if (d?.theme) document.documentElement.setAttribute('data-theme', d.theme); });
     this.socket.on<any>('game:setup_passwords', (d) => this.startPasswordSetup(d));
     this.socket.on<any>('game:started', (d) => { if (d?.theme) document.documentElement.setAttribute('data-theme', d.theme); clearInterval(this.pwdTimer); this.quiz.requestNextQuestion().then(() => this.currentView.set('QUIZ')); });

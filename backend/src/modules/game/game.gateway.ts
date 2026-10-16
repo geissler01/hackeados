@@ -9,6 +9,7 @@ import { GameActionHandlerService } from './services/game-action-handler.service
 import { CreateRoomDto } from '../rooms/dto/create-room.dto';
 import { JoinRoomDto } from '../rooms/dto/join-room.dto';
 
+import { QuestionsService } from '../questions/questions.service';
 import { AiService } from '../ai/ai.service';
 
 @WebSocketGateway({ cors: { origin: '*' } })
@@ -23,36 +24,60 @@ export class GameGateway implements OnGatewayDisconnect {
     private readonly coordinator: GameCoordinatorService,
     private readonly actions: GameActionHandlerService,
     private readonly aiService: AiService,
+    private readonly questions: QuestionsService,
   ) {}
 
   handleDisconnect(client: Socket) { this.disconnectHandler.handleDisconnect(this.server, client); }
 
   @SubscribeMessage('room:create')
-  handleCreateRoom(@ConnectedSocket() client: Socket, @MessageBody() dto: CreateRoomDto) {
+  async handleCreateRoom(@ConnectedSocket() client: Socket, @MessageBody() dto: CreateRoomDto) {
     const room = this.rooms.createRoom(client.id, dto);
     client.join(room.roomCode);
     if (dto.isHostPlaying) this.server.to(room.roomCode).emit('room:players_updated', { players: Array.from(room.players.values()), theme: room.theme });
     
-    // Generación progresiva con IA en segundo plano durante el Lobby
-    this.aiService.generateBatch(room.categoryId, 15).catch(() => {});
+    // Notificar inmediatamente la cantidad de preguntas disponibles
+    const initial = await this.questions.getCategoryQuestionsCount(room.categoryId);
+    this.server.to(room.roomCode).emit('room:questions_progress', {
+      categoryId: room.categoryId, current: initial, target: 100, minRequired: 50,
+    });
+
+    // Generación progresiva con IA en segundo plano hasta 100 preguntas
+    this.aiService.ensurePoolProgressively(room.categoryId, 100, (count) => {
+      this.server.to(room.roomCode).emit('room:questions_progress', {
+        categoryId: room.categoryId, current: count, target: 100, minRequired: 50,
+      });
+    }).catch(() => {});
 
     return { roomCode: room.roomCode, categoryId: room.categoryId, durationSeconds: room.durationSeconds, theme: room.theme, isHostPlaying: dto.isHostPlaying };
   }
 
   @SubscribeMessage('room:join')
-  handleJoinRoom(@ConnectedSocket() client: Socket, @MessageBody() dto: JoinRoomDto) {
+  async handleJoinRoom(@ConnectedSocket() client: Socket, @MessageBody() dto: JoinRoomDto) {
     const { room, player } = this.rooms.joinRoom(client.id, dto);
     this.disconnectService.cancelTimersOnReconnect(room.roomCode);
     client.join(room.roomCode);
     this.server.to(room.roomCode).emit('room:players_updated', { players: Array.from(room.players.values()), hostSocketId: room.hostSocketId, theme: room.theme });
+    const count = await this.questions.getCategoryQuestionsCount(room.categoryId);
+    client.emit('room:questions_progress', { categoryId: room.categoryId, current: count, target: 100, minRequired: 50 });
     return { success: true, player, roomCode: room.roomCode, categoryId: room.categoryId, durationSeconds: room.durationSeconds, theme: room.theme, players: Array.from(room.players.values()), isHost: room.hostSocketId === client.id };
   }
 
   @SubscribeMessage('room:update_config')
-  handleUpdateConfig(@ConnectedSocket() c: Socket, @MessageBody() d: { roomCode: string; categoryId?: string; durationSeconds?: number; theme?: any }) {
+  async handleUpdateConfig(@ConnectedSocket() c: Socket, @MessageBody() d: { roomCode: string; categoryId?: string; durationSeconds?: number; theme?: any }) {
     const r = this.rooms.updateConfig(d.roomCode, c.id, d.categoryId, d.durationSeconds, d.theme);
     if (!r) return { success: false };
     this.server.to(r.roomCode).emit('room:config_updated', { categoryId: r.categoryId, durationSeconds: r.durationSeconds, theme: r.theme });
+    if (d.categoryId) {
+      const initial = await this.questions.getCategoryQuestionsCount(r.categoryId);
+      this.server.to(r.roomCode).emit('room:questions_progress', {
+        categoryId: r.categoryId, current: initial, target: 100, minRequired: 50,
+      });
+      this.aiService.ensurePoolProgressively(r.categoryId, 100, (count) => {
+        this.server.to(r.roomCode).emit('room:questions_progress', {
+          categoryId: r.categoryId, current: count, target: 100, minRequired: 50,
+        });
+      }).catch(() => {});
+    }
     return { success: true, categoryId: r.categoryId, durationSeconds: r.durationSeconds, theme: r.theme };
   }
 

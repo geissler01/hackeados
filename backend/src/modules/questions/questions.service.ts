@@ -13,7 +13,7 @@ export class QuestionsService {
     private readonly categoryRepo: Repository<Category>,
   ) {}
 
-  async loadQuestionsForMatch(categoryId: string, limit: number = 120): Promise<Question[]> {
+  async loadQuestionsForMatch(categoryId: string, limit: number = 50): Promise<Question[]> {
     let questions = await this.questionRepo
       .createQueryBuilder('q')
       .where('q.category_id = :categoryId', { categoryId })
@@ -47,7 +47,19 @@ export class QuestionsService {
     return this.questionRepo.count({ where: { categoryId } });
   }
 
-  async getAllCategories(): Promise<Category[]> {
-    return this.categoryRepo.find();
+  async getAllCategories(): Promise<any[]> {
+    const categories = await this.categoryRepo.find();
+    const counts = await this.questionRepo
+      .createQueryBuilder('q')
+      .select('q.category_id', 'categoryId')
+      .addSelect('COUNT(q.id)', 'count')
+      .groupBy('q.category_id')
+      .getRawMany();
+    const map = new Map(counts.map((c) => [c.categoryId, parseInt(c.count, 10)]));
+    return categories.map((cat) => ({
+      ...cat,
+      questionsCount: map.get(cat.id) || 0,
+      targetPoolSize: 100,
+    }));
   }
 }
