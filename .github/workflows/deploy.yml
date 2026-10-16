@@ -54,9 +54,11 @@ jobs:
             mkdir -p "$PROJECT_DIR"
             cd "$PROJECT_DIR"
 
-            # 2. Descargar últimos cambios de Git
+            # 2. Descargar últimos cambios de Git o clonar si es la primera vez
             if [ -d .git ]; then
               git pull origin main
+            else
+              git clone https://${{ github.actor }}:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git .
             fi
 
             # 3. Inyectar secretos de producción en .env
